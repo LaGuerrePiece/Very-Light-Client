@@ -14,6 +14,20 @@ const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
 
 const TXS_ROOT_INDEX = 4 // within header
 
+async function aleph() {
+  const wsProvider = new WsProvider('wss://ws.test.azero.dev');
+  const api = await ApiPromise.create({ provider: wsProvider })
+  const keyring = new Keyring({ type: 'sr25519' });
+  const me = keyring.addFromUri(process.env.SEED_PHRASE);
+
+  const BOB = '5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty';
+
+  const transfer = api.tx.balances.transfer(BOB, 12345);
+  const hash = await transfer.signAndSend(me);
+  console.log('Transfer sent with hash', hash.toHex());
+
+}
+
 class VerifyProof {
 
   static getRootFromProof(proof){ return keccak(encode(proof[0])) }
@@ -56,7 +70,6 @@ class GetProof{
 
     constructor(rpcProvider){
       this.rpc = new Rpc(rpcProvider)
-    //   this.rpc = new ethers.providers.JsonRpcProvider(rpcProvider)
       this.eth_getProof = this.rpc.eth_getProof
     }
 
@@ -82,6 +95,7 @@ class GetProof{
       
       await Promise.all(rpcBlock.transactions.map((siblingTx, index) => {
           let siblingPath = encode(index)
+          // console.log('siblinPath', siblingPath)
           let serializedSiblingTx = Transaction.fromRpc(siblingTx).serialize()
           return promisfy(tree.put, tree)(siblingPath, serializedSiblingTx) 
         }))
@@ -131,29 +145,10 @@ class GetAndVerify {
     }
 }
 
-async function constructPacket(txHash) {
-    const getAndVerify = new GetAndVerify(rpcUrl)
-    // getAndVerify.txAgainstBlockHash(untrustedTxHash, blockHashThatITrust)
-    const packet = await getAndVerify.getPacket(txHash)
-    // console.log("packet :")
-    // console.dir(packet)
-    return packet
-}
-
 async function main() {
-    // const packet = constructPacket("0x07830e591c3bbd1f107cf422648e80f0b44e13067cb6ea4e7696a8b5a4c01380")
-    
-    const wsProvider = new WsProvider('wss://ws.test.azero.dev');
-    const api = await ApiPromise.create({ provider: wsProvider })
-    const keyring = new Keyring({ type: 'sr25519' });
-    const me = keyring.addFromUri(process.env.SEED_PHRASE);
-
-    const BOB = '5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty';
-
-    const transfer = api.tx.balances.transfer(BOB, 12345);
-    const hash = await transfer.signAndSend(me);
-    console.log('Transfer sent with hash', hash.toHex());
-
+  const getAndVerify = new GetAndVerify(rpcUrl)
+  const packet = await getAndVerify.getPacket("0x07830e591c3bbd1f107cf422648e80f0b44e13067cb6ea4e7696a8b5a4c01380")  
+  console.log('packet', packet)
     
 }
 
