@@ -4,7 +4,7 @@
     "@polkadot/keyring": "^10.1.7",
     "dotenv": "^16.0.2",
     "eth-object": "^1.0.3",
-    "eth-proof": "^2.1.6",
+    "eth-proof": "github:overeality-zkbridge/eth-object",
     "eth-util-lite": "^1.0.1",
     "ethers": "^5.7.0",
     "isomorphic-rpc": "^1.2.2",

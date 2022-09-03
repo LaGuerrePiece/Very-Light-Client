@@ -74,6 +74,7 @@ class GetProof{
     }
 
     async getTxFromTxHash(txHash) {
+        console.log('tx', await this.rpc.eth_getTransactionByHash(txHash))
         return await this.rpc.eth_getTransactionByHash(txHash)
     }
 
@@ -97,6 +98,7 @@ class GetProof{
           let siblingPath = encode(index)
           // console.log('siblinPath', siblingPath)
           let serializedSiblingTx = Transaction.fromRpc(siblingTx).serialize()
+          // console.log("serializedSiblingTx", serializedSiblingTx)
           return promisfy(tree.put, tree)(siblingPath, serializedSiblingTx) 
         }))
 
@@ -118,7 +120,7 @@ class GetAndVerify {
   
     async txAgainstBlockHash(txHash, trustedBlockHash){
       let resp = await this.get.transactionProof(txHash)
-      console.log('resp.header', resp.header)
+      // console.log('resp.header', resp.header)
       let blockHashFromHeader = VerifyProof.getBlockHashFromHeader(resp.header)
       if(!toBuffer(trustedBlockHash).equals(blockHashFromHeader)) throw new Error('BlockHash mismatch')
       let txRootFromHeader = VerifyProof.getTxsRootFromHeader(resp.header)
@@ -147,8 +149,12 @@ class GetAndVerify {
 
 async function main() {
   const getAndVerify = new GetAndVerify(rpcUrl)
-  const packet = await getAndVerify.getPacket("0x07830e591c3bbd1f107cf422648e80f0b44e13067cb6ea4e7696a8b5a4c01380")  
-  console.log('packet', packet)
+  // const packet = await getAndVerify.getPacket("0x07830e591c3bbd1f107cf422648e80f0b44e13067cb6ea4e7696a8b5a4c01380")  
+  const result = await getAndVerify.txAgainstBlockHash('0x9a53763091ca131d88ed155946f3ff8e739003737e8cab3dde9a380f26f4bbd8', "0xb06e1746f418625d5d44a591d0e71525beebfb2fb0c17d82d719d60d860be982")
+  // console.log('packet', packet)
+  console.log('result', result)
+  // const getProof = new GetProof(rpcUrl)
+  // console.log('tx', await getProof.getTxFromTxHash("0x07830e591c3bbd1f107cf422648e80f0b44e13067cb6ea4e7696a8b5a4c01380"))
     
 }
 
