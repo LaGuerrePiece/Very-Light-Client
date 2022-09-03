@@ -18,7 +18,7 @@ mod mytoken {
     impl Mytoken {
         /// Creates a token contract with the given initial supply belonging to the contract creator.
         #[ink(constructor)]
-        pub fn pocHash(supply: u32) -> Self {
+        pub fn poc_hash(supply: u32) -> Self {
             initialize_contract(|contract: &mut Self| {
                 let caller = Self::env().caller();
                 contract.balances.insert(&caller, &supply);
@@ -42,9 +42,9 @@ mod mytoken {
         }
 
         #[ink(message)]
-        pub fn keccack(&self, input: [u8; 3]) -> [u8; 32] {
+        pub fn keccak(&self, input: [u8; 3]) -> [u8; 32] {
             let mut output = <Keccak256 as HashOutput>::Type::default(); // 256-bit buffer
-            let hash  = ink_env::hash_bytes::<Keccak256>(&input, &mut output);
+            ink_env::hash_bytes::<Keccak256>(&input, &mut output);
             return output;
         }
 
@@ -94,5 +94,12 @@ mod tests {
         mytoken.transfer(accounts.bob, 100);
         assert_eq!(mytoken.balance_of(accounts.alice), 900);
         assert_eq!(mytoken.balance_of(accounts.bob), 100);
+    }
+
+    #[ink::test]
+    fn keccak_works() {
+        let mytoken = Mytoken::new_token(1000);
+        assert_eq!(mytoken.hash("premiage"), "hash");
+
     }
 }
