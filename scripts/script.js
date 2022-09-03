@@ -47,6 +47,7 @@ class VerifyProof {
     return Transaction.fromBuffer(txBuffer)
   }
 
+  // checks if the proof 
   static async proofContainsValueAt(proof, path){
     return new Promise((accept, reject) => {
       let encodedProof = []
@@ -55,7 +56,7 @@ class VerifyProof {
         encodedProof.push(encode(proof[i]))
       }
 
-      Tree.verifyProof(toBuffer(this.getRootFromProof(proof)) , path, encodedProof, (e,r)=>{
+      Tree.verifyProof(toBuffer(this.getRootFromProof(proof)), path, encodedProof, (e,r)=>{
         if(e){
           return reject(e)
         }else{
@@ -74,7 +75,7 @@ class GetProof{
     }
 
     async getTxFromTxHash(txHash) {
-        console.log('tx', await this.rpc.eth_getTransactionByHash(txHash))
+        // console.log('tx', await this.rpc.eth_getTransactionByHash(txHash))
         return await this.rpc.eth_getTransactionByHash(txHash)
     }
 
@@ -96,9 +97,7 @@ class GetProof{
       
       await Promise.all(rpcBlock.transactions.map((siblingTx, index) => {
           let siblingPath = encode(index)
-          // console.log('siblinPath', siblingPath)
           let serializedSiblingTx = Transaction.fromRpc(siblingTx).serialize()
-          // console.log("serializedSiblingTx", serializedSiblingTx)
           return promisfy(tree.put, tree)(siblingPath, serializedSiblingTx) 
         }))
 
@@ -119,13 +118,17 @@ class GetAndVerify {
     }
   
     async txAgainstBlockHash(txHash, trustedBlockHash){
+      // generates the proof : header, txProof, txIndex by calling RPC
       let resp = await this.get.transactionProof(txHash)
-      // console.log('resp.header', resp.header)
+      // gets the blockHash from the header and compares it to the real one
       let blockHashFromHeader = VerifyProof.getBlockHashFromHeader(resp.header)
       if(!toBuffer(trustedBlockHash).equals(blockHashFromHeader)) throw new Error('BlockHash mismatch')
+      // extracts txsRoot from header
       let txRootFromHeader = VerifyProof.getTxsRootFromHeader(resp.header)
+      // checks if txRoot given in proof is the same as in the header
       let txRootFromProof = VerifyProof.getRootFromProof(resp.txProof)
       if(!txRootFromHeader.equals(txRootFromProof)) throw new Error('TxRoot mismatch')
+      // at the given index, 
       return VerifyProof.getTxFromTxProofAt(resp.txProof, resp.txIndex)
     }
 
@@ -140,6 +143,7 @@ class GetAndVerify {
         return {
             txRaw: txRaw, // Buffer(172) [Uint8Array]
             txProof: resp.txProof, // Proof(5) [[Buffer [Uint8Array]]]
+            txIndex: resp.txIndex, // 
             txRoot: block.transactionsRoot, // string
             blockHeader: resp.header, // Header(15) [Buffer(32) [Uint8Array] ]
             blockHash: block.hash, // string
@@ -147,15 +151,58 @@ class GetAndVerify {
     }
 }
 
+async function checkPacket(packet) {
+  // VERIFY that txHash declared = keccak256(txRaw)
+  const txHashFromRawTx = keccak(packet.txRaw)
+  const txHashFromProof = await VerifyProof.getTxFromTxProofAt(packet.txProof, packet.txIndex)
+  if (txHashFromRawTx !== txHashFromProof) {
+    console.log('error, txHashFromRawTx !== txHashFromProof', txHashFromRawTx, txHashFromProof)
+    return
+  }
+
+  // VERIFY that txRoot declared = keccak (txHash + txProof)
+  let encodedProof = []
+  for (let i = 0; i < packet.txProof.length; i++) {
+    encodedProof.push(encode(packet.txProof[i]))
+  }
+  
+  Tree.verifyProof(toBuffer(packet.txRoot), encode(packet.txIndex), encodedProof, (e,r)=>{
+    if(e){
+      return reject(e)
+    }else{
+      return accept(r)
+    }
+  })
+  // Verifie that proof[0] == packet.txRoot ?
+
+  // VERIFY that txRoot declared is same as txRoot from Header
+  let txRootFromHeader = VerifyProof.getTxsRootFromHeader(packet.blockHeader)
+  if (txRootFromHeader !== packet.txRoot) {
+    console.log('error, txRootFromHeader !== packet.txRoot', txRootFromHeader, packet.txRoot)
+    return
+  }
+
+  // VERIFY that blockHeader provided hashed gives blockHash provided
+  let blockHashFromHeader = VerifyProof.getBlockHashFromHeader(packet.blockHeader)
+  if(!toBuffer(packet.blockHash).equals(blockHashFromHeader)) throw new Error('BlockHash mismatch')
+
+  // CHECK txRaw.amount == _amount, txRaw.to == bridgeContract, txRaw.method == lock
+  // CHECK blockHash == relayedBlockHash
+
+  
+
+}
+
 async function main() {
   const getAndVerify = new GetAndVerify(rpcUrl)
-  // const packet = await getAndVerify.getPacket("0x07830e591c3bbd1f107cf422648e80f0b44e13067cb6ea4e7696a8b5a4c01380")  
-  const result = await getAndVerify.txAgainstBlockHash('0x9a53763091ca131d88ed155946f3ff8e739003737e8cab3dde9a380f26f4bbd8', "0xb06e1746f418625d5d44a591d0e71525beebfb2fb0c17d82d719d60d860be982")
+  const packet = await getAndVerify.getPacket("0x07830e591c3bbd1f107cf422648e80f0b44e13067cb6ea4e7696a8b5a4c01380")  
+  // const result = await getAndVerify.txAgainstBlockHash('0x9a53763091ca131d88ed155946f3ff8e739003737e8cab3dde9a380f26f4bbd8', "0xb06e1746f418625d5d44a591d0e71525beebfb2fb0c17d82d719d60d860be982")
   // console.log('packet', packet)
-  console.log('result', result)
+  // console.log('result :')
+  await checkPacket(packet)
+  // console.log('result', result)
   // const getProof = new GetProof(rpcUrl)
   // console.log('tx', await getProof.getTxFromTxHash("0x07830e591c3bbd1f107cf422648e80f0b44e13067cb6ea4e7696a8b5a4c01380"))
-    
 }
 
 main().then(() => process.exit())
