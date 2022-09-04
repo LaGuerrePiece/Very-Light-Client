@@ -4,9 +4,10 @@ const { keccak, encode, decode, toBuffer, toWord } = require('eth-util-lite')
 const { Header, Proof, Transaction } = require('eth-object')
 const { promisfy } = require('promisfy')
 const Rpc  = require('isomorphic-rpc')
-const { ApiPromise, WsProvider } = require('@polkadot/api');
-const { Keyring } = require('@polkadot/keyring');
+// const { ApiPromise, WsProvider } = require('@polkadot/api');
+// const { Keyring } = require('@polkadot/keyring');
 require('dotenv').config()
+var fs = require('file-system');
 
 
 const rpcUrl = "https://mainnet.infura.io/v3/49f373294ecd4358abd6a39d55521529"
@@ -14,19 +15,19 @@ const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
 
 const TXS_ROOT_INDEX = 4 // within header
 
-async function aleph() {
-  const wsProvider = new WsProvider('wss://ws.test.azero.dev');
-  const api = await ApiPromise.create({ provider: wsProvider })
-  const keyring = new Keyring({ type: 'sr25519' });
-  const me = keyring.addFromUri(process.env.SEED_PHRASE);
+// async function aleph() {
+//   const wsProvider = new WsProvider('wss://ws.test.azero.dev');
+//   const api = await ApiPromise.create({ provider: wsProvider })
+//   const keyring = new Keyring({ type: 'sr25519' });
+//   const me = keyring.addFromUri(process.env.SEED_PHRASE);
 
-  const BOB = '5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty';
+//   const BOB = '5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty';
 
-  const transfer = api.tx.balances.transfer(BOB, 12345);
-  const hash = await transfer.signAndSend(me);
-  console.log('Transfer sent with hash', hash.toHex());
+//   const transfer = api.tx.balances.transfer(BOB, 12345);
+//   const hash = await transfer.signAndSend(me);
+//   console.log('Transfer sent with hash', hash.toHex());
 
-}
+// }
 
 class VerifyProof {
 
@@ -102,6 +103,8 @@ class GetProof{
         }))
 
       let [_,__,stack] = await promisfy(tree.findPath, tree)(encode(targetTx.transactionIndex))
+      // console.log('stack', stack)
+      // console.log('txProof:', Proof.fromStack(stack),)
   
       return {
         header: Header.fromRpc(rpcBlock),
@@ -137,13 +140,12 @@ class GetAndVerify {
         const txRaw = await this.get.getRawTxFromTxHash(tx)
         const resp = await this.get.transactionProof(txHash)
         const block = await this.get.getBlockFromBlockHash(tx.blockHash)
-        // block.transactions = null
-        // console.log('block', block)
 
         return {
             txRaw: txRaw, // Buffer(172) [Uint8Array]
+            txRawIndexInTree: resp.txRawIndexInTree, // uint256
             txProof: resp.txProof, // Proof(5) [[Buffer [Uint8Array]]]
-            txIndex: resp.txIndex, // 
+            txIndexInBlock: resp.txIndex, // uint256
             txRoot: block.transactionsRoot, // string
             blockHeader: resp.header, // Header(15) [Buffer(32) [Uint8Array] ]
             blockHash: block.hash, // string
@@ -196,13 +198,29 @@ async function checkPacket(packet) {
 async function main() {
   const getAndVerify = new GetAndVerify(rpcUrl)
   const packet = await getAndVerify.getPacket("0x07830e591c3bbd1f107cf422648e80f0b44e13067cb6ea4e7696a8b5a4c01380")  
+  
+  try {
+    fs.writeFileSync(
+      "packet.json",
+      JSON.stringify(packet)
+    );
+  } catch (e) {
+    console.log(e);
+  }
+
+  
+  // return packet
   // const result = await getAndVerify.txAgainstBlockHash('0x9a53763091ca131d88ed155946f3ff8e739003737e8cab3dde9a380f26f4bbd8', "0xb06e1746f418625d5d44a591d0e71525beebfb2fb0c17d82d719d60d860be982")
   // console.log('packet', packet)
   // console.log('result :')
-  await checkPacket(packet)
+  // await checkPacket(packet)
   // console.log('result', result)
   // const getProof = new GetProof(rpcUrl)
   // console.log('tx', await getProof.getTxFromTxHash("0x07830e591c3bbd1f107cf422648e80f0b44e13067cb6ea4e7696a8b5a4c01380"))
 }
 
 main().then(() => process.exit())
+
+// module.exports = {
+//   main
+// }

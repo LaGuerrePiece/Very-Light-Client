@@ -41,13 +41,6 @@ mod mytoken {
             }
         }
 
-        #[ink(message)]
-        pub fn keccak(&self, input: [u8; 3]) -> [u8; 32] {
-            let mut output = <Keccak256 as HashOutput>::Type::default(); // 256-bit buffer
-            ink_env::hash_bytes::<Keccak256>(&input, &mut output);
-            return output;
-        }
-
         /// Transfers an amount of tokens to the chosen recipient.
         #[ink(message)]
         pub fn transfer(&mut self, recipient: AccountId, amount: u32) {
@@ -60,6 +53,21 @@ mod mytoken {
             let recipient_balance = self.balance_of(recipient);
             self.balances.insert(recipient, &(recipient_balance + amount));
         }
+
+
+        #[ink(message)]
+        pub fn keccak(&self, input: Vec<u8>) -> [u8; 32] {
+            let mut output = <Keccak256 as HashOutput>::Type::default(); // 256-bit buffer
+            ink_env::hash_bytes::<Keccak256>(&input, &mut output);
+            return output;
+        }
+
+        // pub fn mint<'a>(&self, txRaw: &'a [u8], txHash: [u8; 32]) {
+        //     let txHashFromRawTx = self.keccak(txRaw);
+        //     assert!(txHashFromRawTx == txHash);
+        // }
+
+
     }
 }
 
