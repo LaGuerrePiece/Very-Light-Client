@@ -191,8 +191,6 @@ async function checkPacket(packet) {
   // CHECK txRaw.amount == _amount, txRaw.to == bridgeContract, txRaw.method == lock
   // CHECK blockHash == relayedBlockHash
 
-  
-
 }
 
 async function main() {
@@ -207,7 +205,6 @@ async function main() {
   } catch (e) {
     console.log(e);
   }
-
   
   // return packet
   // const result = await getAndVerify.txAgainstBlockHash('0x9a53763091ca131d88ed155946f3ff8e739003737e8cab3dde9a380f26f4bbd8', "0xb06e1746f418625d5d44a591d0e71525beebfb2fb0c17d82d719d60d860be982")
@@ -220,7 +217,3 @@ async function main() {
 }
 
 main().then(() => process.exit())
-
-// module.exports = {
-//   main
-// }
